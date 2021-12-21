@@ -9,15 +9,18 @@ const nextId = require("../utils/nextId");
 // TODO: Implement the /dishes handlers needed to make the tests pass
 
 function dishExists(req, res, next) {
-    const { dishId } = req.params
+    let { dishId } = req.params
+    const { id } = req.body
+    
     const foundDish = dishes.find((dish) => dish.id === dishId)
     if (foundDish) {
         res.locals.dish = foundDish
+        res.locals.index = dishes.indexOf(foundDish)
         return next()
     }
     next({
         status: 404,
-        message: `Dish does not exist: ${id}.`
+        message: `Dish does not exist: ${dishId}.`
     })
 }
 
@@ -75,11 +78,28 @@ function bodyHasValidImageUrl(req, res, next) {
     })
 }
 
+function bodyIdMatchesOrderIdParam(req, res, next) {
+    const { dishId } = req.params
+    const { data: { id } = {} } = req.body
+    if (id === undefined || id === null || id == "") {
+        res.locals.id = dishId
+        return next()
+    }
+    if (dishId !== id) {
+        next({
+            status: 400,
+            message: `Order id does not match route id. Order: ${id}, Route: ${dishId}`
+        })
+    }
+    res.locals.id = dishId
+    return next()
+}
 
 
 
-
-
+function read(req, res) {
+    res.json({ data: res.locals.dish })
+}
 
 function list(req, res) {
     res.json({ data: dishes })
@@ -95,9 +115,14 @@ function create(req, res) {
     res.status(201).json({ data: newDish })
 }
 
-function update(req, res) {
-    const { data: { ...newDish } = {} } = req.body
-    res.json({ data: newDish })
+function update(req, res, next) {
+    const { dishId } = req. params
+    const { data: { ...body } = {} } = req.body
+    dishes[res.locals.index] = {
+        ...body,
+    }
+    dishes[res.locals.index].id = res.locals.id
+    res.json({ data: dishes[res.locals.index] })
 }
 
 
@@ -113,5 +138,17 @@ module.exports = {
         bodyHasValidImageUrl,
         create,
     ],
-    update: [dishExists, update]
+    update: [
+        dishExists,
+        bodyHasNameProperty,
+        bodyHasDescriptionProperty,
+        bodyHasValidPrice,
+        bodyHasValidImageUrl, 
+        bodyIdMatchesOrderIdParam,
+        update,
+    ],
+    read: [
+        dishExists,
+        read,
+    ]
 }
